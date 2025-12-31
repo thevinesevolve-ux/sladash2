@@ -17,6 +17,22 @@ const CLIENT_COLORS = {
 
 const DEFAULT_COLOR = '#6366f1';
 
+// Date formatter helper
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  if (isNaN(date)) return dateStr;
+  return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  if (isNaN(date)) return dateStr;
+  return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) + ' ' + 
+         date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
 // ============================================
 // CSV PARSER
 // ============================================
@@ -487,8 +503,8 @@ export default function App() {
                     <tr key={order.id || idx} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-sm font-mono text-slate-800">{order.id}</td>
                       <td className="px-4 py-3 text-sm text-slate-600">{order.client}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{order.date}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{order.readyAt || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{formatDate(order.date)}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{formatDateTime(order.readyAt)}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
                           order.daysOld >= 7 
@@ -538,9 +554,9 @@ export default function App() {
                     <tr key={order.id || idx} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-sm font-mono text-slate-800">{order.id}</td>
                       <td className="px-4 py-3 text-sm text-slate-600">{order.client}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{order.date}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{order.readyAt || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{order.shippedAt || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{formatDate(order.date)}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{formatDateTime(order.readyAt)}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{formatDateTime(order.shippedAt)}</td>
                       <td className="px-4 py-3 text-center">
                         {order.slaMet ? (
                           <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
