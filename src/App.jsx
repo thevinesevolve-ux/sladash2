@@ -17,18 +17,34 @@ const CLIENT_COLORS = {
 
 const DEFAULT_COLOR = '#6366f1';
 
+// Parse date that could be DD/MM/YYYY or ISO format
+function parseDate(dateStr) {
+  if (!dateStr) return null;
+  
+  // Check if DD/MM/YYYY format (e.g., "30/12/2025")
+  const ddmmyyyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
+    return new Date(year, month - 1, day);
+  }
+  
+  // Otherwise try standard parsing (ISO format, etc.)
+  const date = new Date(dateStr);
+  return isNaN(date) ? null : date;
+}
+
 // Date formatter helper
 function formatDate(dateStr) {
   if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  if (isNaN(date)) return dateStr;
+  const date = parseDate(dateStr);
+  if (!date) return dateStr;
   return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
 }
 
 function formatDateTime(dateStr) {
   if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  if (isNaN(date)) return dateStr;
+  const date = parseDate(dateStr);
+  if (!date) return dateStr;
   return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) + ' ' + 
          date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
@@ -95,8 +111,8 @@ export default function App() {
       // Set initial date range to last 7 days of data
       if (parsedOrders.length > 0) {
         const dates = parsedOrders
-          .map(o => new Date(o.Date))
-          .filter(d => !isNaN(d))
+          .map(o => parseDate(o['Order Date'] || o['Date']))
+          .filter(d => d !== null)
           .sort((a, b) => b - a);
         
         if (dates.length > 0) {
@@ -159,10 +175,10 @@ export default function App() {
       
       return {
         id: order['Order ID'],
-        shipheroId: order['ShipHero ID'],
+        shipheroId: order['ShipHero ID'] || order['Shiphero ID'],
         shopName: order['Shop Name'],
         client: clientInfo.name,
-        date: order['Date'],
+        date: order['Order Date'] || order['Date'],
         readyAt: order['Ready At'],
         shippedAt: order['Shipped At'],
         slaMet: order['SLA Met']?.toUpperCase() === 'YES',
@@ -175,7 +191,8 @@ export default function App() {
   // Filter orders by date range and client
   const filteredOrders = useMemo(() => {
     return processedOrders.filter(order => {
-      const orderDate = new Date(order.date);
+      const orderDate = parseDate(order.date);
+      if (!orderDate) return false;
       
       if (dateRange.start && dateRange.end) {
         const startDate = new Date(dateRange.start);
@@ -229,9 +246,9 @@ export default function App() {
       .map(d => ({
         ...d,
         rate: d.total > 0 ? ((d.met / d.total) * 100).toFixed(1) : 0,
-        displayDate: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        displayDate: parseDate(d.date)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) || d.date
       }))
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
+      .sort((a, b) => (parseDate(a.date) || 0) - (parseDate(b.date) || 0));
   }, [filteredOrders]);
 
   // Aging orders (missed SLA, days since ready, not yet shipped)
@@ -244,8 +261,9 @@ export default function App() {
       .filter(order => !order.shippedAt) // Exclude shipped orders
       .filter(order => selectedClient === 'All Clients' || order.client === selectedClient)
       .map(order => {
-        // Parse the Ready At timestamp (format: 2025-12-31 02:07:23)
-        const readyDate = new Date(order.readyAt);
+        // Parse the Ready At timestamp
+        const readyDate = parseDate(order.readyAt);
+        if (!readyDate) return { ...order, daysOld: NaN };
         readyDate.setHours(0, 0, 0, 0);
         const daysOld = Math.floor((today - readyDate) / (1000 * 60 * 60 * 24));
         return { ...order, daysOld };
@@ -259,7 +277,9 @@ export default function App() {
     const byClient = {};
     
     processedOrders.forEach(order => {
-      const orderDate = new Date(order.date);
+      const orderDate = parseDate(order.date);
+      if (!orderDate) return;
+      
       if (dateRange.start && dateRange.end) {
         const startDate = new Date(dateRange.start);
         startDate.setHours(0, 0, 0, 0);
