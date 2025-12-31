@@ -17,15 +17,15 @@ const CLIENT_COLORS = {
 
 const DEFAULT_COLOR = '#6366f1';
 
-// Parse date that could be DD/MM/YYYY or ISO format
+// Parse date that could be DD/MM/YYYY, DD/MM/YYYY HH:MM:SS, or ISO format
 function parseDate(dateStr) {
   if (!dateStr) return null;
   
-  // Check if DD/MM/YYYY format (e.g., "30/12/2025")
-  const ddmmyyyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  // Check if DD/MM/YYYY format with optional time (e.g., "30/12/2025" or "30/12/2025 14:44:29")
+  const ddmmyyyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}):?(\d{2})?)?/);
   if (ddmmyyyy) {
-    const [, day, month, year] = ddmmyyyy;
-    return new Date(year, month - 1, day);
+    const [, day, month, year, hours = 0, minutes = 0, seconds = 0] = ddmmyyyy;
+    return new Date(year, month - 1, day, hours, minutes, seconds);
   }
   
   // Otherwise try standard parsing (ISO format, etc.)
