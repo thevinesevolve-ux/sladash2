@@ -218,6 +218,23 @@ export default function App() {
       .sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [filteredOrders]);
 
+  // Aging orders (missed SLA, days since ready)
+  const agingOrders = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return processedOrders
+      .filter(order => !order.slaMet)
+      .map(order => {
+        // Combine date + readyAt time to get full ready timestamp
+        const readyDate = new Date(order.date);
+        readyDate.setHours(0, 0, 0, 0);
+        const daysOld = Math.floor((today - readyDate) / (1000 * 60 * 60 * 24));
+        return { ...order, daysOld };
+      })
+      .sort((a, b) => b.daysOld - a.daysOld);
+  }, [processedOrders]);
+
   // Client breakdown
   const clientBreakdown = useMemo(() => {
     const byClient = {};
@@ -460,6 +477,59 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {/* Aging Orders - Missed SLA */}
+        {agingOrders.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+            <div className="p-4 border-b border-slate-200 bg-red-50">
+              <h3 className="font-semibold text-red-800 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                Aging Orders - Missed SLA ({agingOrders.length})
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Order ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Client</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Order Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Ready At</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase">Days Since Ready</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {agingOrders.slice(0, 20).map((order, idx) => (
+                    <tr key={order.id || idx} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 text-sm font-mono text-slate-800">{order.id}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{order.client}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{order.date}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{order.readyAt || '-'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                          order.daysOld >= 7 
+                            ? 'bg-red-600 text-white' 
+                            : order.daysOld >= 3 
+                              ? 'bg-orange-500 text-white' 
+                              : order.daysOld >= 1
+                                ? 'bg-yellow-400 text-yellow-900'
+                                : 'bg-slate-200 text-slate-700'
+                        }`}>
+                          {order.daysOld}d
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {agingOrders.length > 20 && (
+              <div className="p-4 border-t border-slate-200 text-center text-sm text-slate-500">
+                Showing 20 of {agingOrders.length} aging orders
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Orders Table */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
