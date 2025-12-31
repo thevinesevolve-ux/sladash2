@@ -226,12 +226,13 @@ export default function App() {
     return processedOrders
       .filter(order => !order.slaMet)
       .map(order => {
-        // Combine date + readyAt time to get full ready timestamp
-        const readyDate = new Date(order.date);
+        // Parse the Ready At timestamp (format: 2025-12-31 02:07:23)
+        const readyDate = new Date(order.readyAt);
         readyDate.setHours(0, 0, 0, 0);
         const daysOld = Math.floor((today - readyDate) / (1000 * 60 * 60 * 24));
         return { ...order, daysOld };
       })
+      .filter(order => !isNaN(order.daysOld))
       .sort((a, b) => b.daysOld - a.daysOld);
   }, [processedOrders]);
 
