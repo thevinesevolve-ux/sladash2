@@ -268,7 +268,7 @@ export default function App() {
         const daysOld = Math.floor((today - readyDate) / (1000 * 60 * 60 * 24));
         return { ...order, daysOld };
       })
-      .filter(order => !isNaN(order.daysOld))
+      .filter(order => !isNaN(order.daysOld) && order.daysOld >= 1)
       .sort((a, b) => b.daysOld - a.daysOld);
   }, [processedOrders, selectedClient]);
 
