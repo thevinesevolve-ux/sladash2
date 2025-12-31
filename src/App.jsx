@@ -234,13 +234,14 @@ export default function App() {
       .sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [filteredOrders]);
 
-  // Aging orders (missed SLA, days since ready)
+  // Aging orders (missed SLA, days since ready, not yet shipped)
   const agingOrders = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     return processedOrders
       .filter(order => !order.slaMet)
+      .filter(order => !order.shippedAt) // Exclude shipped orders
       .filter(order => selectedClient === 'All Clients' || order.client === selectedClient)
       .map(order => {
         // Parse the Ready At timestamp (format: 2025-12-31 02:07:23)
