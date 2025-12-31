@@ -182,15 +182,19 @@ export default function App() {
         readyAt: order['Ready At'],
         shippedAt: order['Shipped At'],
         slaMet: order['SLA Met']?.toUpperCase() === 'YES',
+        excluded: order['Exclude']?.toUpperCase() === 'YES',
         cutoff: clientInfo.cutoff,
         target: clientInfo.target
       };
     }).filter(o => o.date && o.id);
   }, [orders, shopToClient]);
 
-  // Filter orders by date range and client
+  // Filter orders by date range and client (excludes marked orders from SLA calc)
   const filteredOrders = useMemo(() => {
     return processedOrders.filter(order => {
+      // Skip excluded orders
+      if (order.excluded) return false;
+      
       const orderDate = parseDate(order.date);
       if (!orderDate) return false;
       
@@ -259,6 +263,7 @@ export default function App() {
     return processedOrders
       .filter(order => !order.slaMet)
       .filter(order => !order.shippedAt) // Exclude shipped orders
+      .filter(order => !order.excluded) // Exclude orders marked with issues
       .filter(order => selectedClient === 'All Clients' || order.client === selectedClient)
       .map(order => {
         // Parse the Ready At timestamp
@@ -277,6 +282,9 @@ export default function App() {
     const byClient = {};
     
     processedOrders.forEach(order => {
+      // Skip excluded orders
+      if (order.excluded) return;
+      
       const orderDate = parseDate(order.date);
       if (!orderDate) return;
       
