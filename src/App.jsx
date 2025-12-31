@@ -225,6 +225,7 @@ export default function App() {
     
     return processedOrders
       .filter(order => !order.slaMet)
+      .filter(order => selectedClient === 'All Clients' || order.client === selectedClient)
       .map(order => {
         // Parse the Ready At timestamp (format: 2025-12-31 02:07:23)
         const readyDate = new Date(order.readyAt);
@@ -234,7 +235,7 @@ export default function App() {
       })
       .filter(order => !isNaN(order.daysOld))
       .sort((a, b) => b.daysOld - a.daysOld);
-  }, [processedOrders]);
+  }, [processedOrders, selectedClient]);
 
   // Client breakdown
   const clientBreakdown = useMemo(() => {
