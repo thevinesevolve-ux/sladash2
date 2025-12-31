@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
-import { CheckCircle, XCircle, Package, TrendingUp, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Package, TrendingUp, RefreshCw, AlertTriangle } from 'lucide-react';
 
 // ============================================
 // GOOGLE SHEETS CSV URLS
@@ -270,24 +270,6 @@ export default function App() {
       .sort((a, b) => b.total - a.total);
   }, [processedOrders, dateRange]);
 
-  // Date navigation
-  const navigateWeek = (direction) => {
-    if (!dateRange.start || !dateRange.end) return;
-    
-    const days = direction * 7;
-    const newStart = new Date(dateRange.start);
-    const newEnd = new Date(dateRange.end);
-    newStart.setDate(newStart.getDate() + days);
-    newEnd.setDate(newEnd.getDate() + days);
-    setDateRange({ start: newStart, end: newEnd });
-  };
-
-  const formatDateRange = () => {
-    if (!dateRange.start || !dateRange.end) return 'All Time';
-    const opts = { month: 'short', day: 'numeric' };
-    return `${dateRange.start.toLocaleDateString('en-US', opts)} - ${dateRange.end.toLocaleDateString('en-US', opts)}`;
-  };
-
   // Loading state
   if (loading) {
     return (
@@ -353,23 +335,21 @@ export default function App() {
               ))}
             </select>
             
-            {/* Date Navigation */}
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1">
-              <button
-                onClick={() => navigateWeek(-1)}
-                className="p-1 hover:bg-slate-100 rounded"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-sm font-medium px-2 min-w-[140px] text-center">
-                {formatDateRange()}
-              </span>
-              <button
-                onClick={() => navigateWeek(1)}
-                className="p-1 hover:bg-slate-100 rounded"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+            {/* Date Range Picker */}
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1">
+              <input
+                type="date"
+                value={dateRange.start ? dateRange.start.toISOString().split('T')[0] : ''}
+                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value ? new Date(e.target.value) : null }))}
+                className="text-sm border-none focus:outline-none"
+              />
+              <span className="text-slate-400">to</span>
+              <input
+                type="date"
+                value={dateRange.end ? dateRange.end.toISOString().split('T')[0] : ''}
+                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value ? new Date(e.target.value) : null }))}
+                className="text-sm border-none focus:outline-none"
+              />
             </div>
           </div>
         </div>
@@ -419,7 +399,7 @@ export default function App() {
         </div>
 
         {/* Charts Row */}
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
+        <div className={`grid gap-6 mb-6 ${selectedClient === 'All Clients' ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
           {/* Daily Trend */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
             <h3 className="font-semibold text-slate-800 mb-4">Daily SLA Trend</h3>
@@ -448,7 +428,8 @@ export default function App() {
             )}
           </div>
 
-          {/* Client Breakdown */}
+          {/* Client Breakdown - only show when All Clients selected */}
+          {selectedClient === 'All Clients' && (
           <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
             <h3 className="font-semibold text-slate-800 mb-4">By Client</h3>
             {clientBreakdown.length > 0 ? (
@@ -478,6 +459,7 @@ export default function App() {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Aging Orders - Missed SLA */}
