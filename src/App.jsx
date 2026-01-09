@@ -5,7 +5,7 @@ import { CheckCircle, XCircle, Package, TrendingUp, RefreshCw, AlertTriangle } f
 // ============================================
 // GOOGLE SHEETS CSV URLS
 // ============================================
-const DAILY_ORDERS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEB9EzUWiC8kSBDPaBLXfC-Rnb7QRJxa9S8lidERx15UNWH3Sevpb21iutH21VwGbIUOocmUpcRzte/pub?gid=1088829242&single=true&output=csv';
+const DAILY_ORDERS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEB9EzUWiC8kSBDPaBLXfC-Rnb7QRJxa9S8lidERx15UNWH3Sevpb21iutH21VwGbIUOocmUpcRzte/pubhtml?gid=1088829242&single=true';
 const CLIENT_CONFIG_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEB9EzUWiC8kSBDPaBLXfC-Rnb7QRJxa9S8lidERx15UNWH3Sevpb21iutH21VwGbIUOocmUpcRzte/pub?gid=1971410819&single=true&output=csv';
 
 // Client colors for charts
