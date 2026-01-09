@@ -227,12 +227,12 @@ export default function App() {
     
     let target = 99;
     if (selectedClient !== 'All Clients') {
-      const clientInfo = Object.values(shopToClient).find(c => c.name === selectedClient);
+      const clientInfo = Object.values(accountToClient).find(c => c.name === selectedClient);
       if (clientInfo) target = clientInfo.target;
     }
     
     return { total, met, missed, rate, target };
-  }, [filteredOrders, selectedClient, shopToClient]);
+  }, [filteredOrders, selectedClient, accountToClient]);
 
   // Daily trend data
   const dailyTrend = useMemo(() => {
