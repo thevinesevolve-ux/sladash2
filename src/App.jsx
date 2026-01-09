@@ -142,11 +142,11 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Map shop names to client names
-  const shopToClient = useMemo(() => {
+  // Map Client Account ID to client names
+  const accountToClient = useMemo(() => {
     const map = {};
     clientConfig.forEach(config => {
-      map[config['Shop Name']] = {
+      map[config['Client Account ID']] = {
         name: config['Client Name'],
         cutoff: config['Cutoff'] || '09:00',
         target: parseInt(config['Target']) || 99
@@ -167,8 +167,9 @@ export default function App() {
   // Process orders with client mapping
   const processedOrders = useMemo(() => {
     return orders.map(order => {
-      const clientInfo = shopToClient[order['Shop Name']] || { 
-        name: order['Shop Name'], 
+      const clientAccountId = order['Client Account ID'];
+      const clientInfo = accountToClient[clientAccountId] || { 
+        name: clientAccountId || 'Unknown', 
         cutoff: '09:00', 
         target: 99 
       };
@@ -176,7 +177,7 @@ export default function App() {
       return {
         id: order['Order ID'],
         shipheroId: order['ShipHero ID'] || order['Shiphero ID'],
-        shopName: order['Shop Name'],
+        clientAccountId: clientAccountId,
         client: clientInfo.name,
         date: order['Order Date'] || order['Date'],
         readyAt: order['Ready At'],
@@ -187,7 +188,7 @@ export default function App() {
         target: clientInfo.target
       };
     }).filter(o => o.date && o.id);
-  }, [orders, shopToClient]);
+  }, [orders, accountToClient]);
 
   // Filter orders by date range and client (excludes marked orders from SLA calc)
   const filteredOrders = useMemo(() => {
