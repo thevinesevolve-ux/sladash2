@@ -5,8 +5,8 @@ import { CheckCircle, XCircle, Package, TrendingUp, RefreshCw, AlertTriangle } f
 // ============================================
 // GOOGLE SHEETS CSV URLS
 // ============================================
-const DAILY_ORDERS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEB9EzUWiC8kSBDPaBLXfC-Rnb7QRJxa9S8lidERx15UNWH3Sevpb21iutH21VwGbIUOocmUpcRzte/pubhtml?gid=1088829242&single=true';
-const CLIENT_CONFIG_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEB9EzUWiC8kSBDPaBLXfC-Rnb7QRJxa9S8lidERx15UNWH3Sevpb21iutH21VwGbIUOocmUpcRzte/pubhtml?gid=1971410819&single=true';
+const DAILY_ORDERS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEB9EzUWiC8kSBDPaBLXfC-Rnb7QRJxa9S8lidERx15UNWH3Sevpb21iutH21VwGbIUOocmUpcRzte/pub?gid=1088829242&single=true&output=csv';
+const CLIENT_CONFIG_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEB9EzUWiC8kSBDPaBLXfC-Rnb7QRJxa9S8lidERx15UNWH3Sevpb21iutH21VwGbIUOocmUpcRzte/pub?gid=1971410819&single=true&output=csv';
 
 // Client colors for charts
 const CLIENT_COLORS = {
@@ -17,14 +17,14 @@ const CLIENT_COLORS = {
 
 const DEFAULT_COLOR = '#6366f1';
 
-// Parse date that could be DD/MM/YYYY, DD/MM/YYYY HH:MM:SS, or ISO format
+// Parse date that could be M/D/YYYY, M/D/YYYY HH:MM:SS, or ISO format
 function parseDate(dateStr) {
   if (!dateStr) return null;
   
-  // Check if DD/MM/YYYY format with optional time (e.g., "30/12/2025" or "30/12/2025 14:44:29")
-  const ddmmyyyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}):?(\d{2})?)?/);
-  if (ddmmyyyy) {
-    const [, day, month, year, hours = 0, minutes = 0, seconds = 0] = ddmmyyyy;
+  // Check if M/D/YYYY format with optional time (e.g., "1/7/2026" or "12/25/2025 14:44:29")
+  const mdyyyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}):?(\d{2})?)?/);
+  if (mdyyyy) {
+    const [, month, day, year, hours = 0, minutes = 0, seconds = 0] = mdyyyy;
     return new Date(year, month - 1, day, hours, minutes, seconds);
   }
   
