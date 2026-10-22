@@ -1,0 +1,30 @@
+# Dependabot: security fixes as they come, routine updates once a month.
+# Each run bundles everything into one pull request per ecosystem.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      monthly-updates:
+        applies-to: version-updates
+        patterns: ["*"]
+      security-fixes:
+        applies-to: security-updates
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directories:
+      - "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      monthly-updates:
+        applies-to: version-updates
+        patterns: ["*"]
+      security-fixes:
+        applies-to: security-updates
+        patterns: ["*"]
