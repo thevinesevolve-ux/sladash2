@@ -1,7 +1,7 @@
 name: Security scans
 
-# Runs before every deploy. With Railway "Wait for CI" on, a failure here
-# skips the deploy. To silence a false positive:
+# Required by the checked-source release process; automatic GitHub deploy stays disconnected.
+# For a verified false positive:
 #   leaked-secret finding   -> add its fingerprint to .gitleaksignore
 #   code finding (Semgrep)  -> add a "nosemgrep" comment on that line
 #   package/config finding  -> add its ID (e.g. CVE-2026-1234) to .trivyignore
