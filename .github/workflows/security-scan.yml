@@ -1,0 +1,242 @@
+name: Security scans
+
+# Required by the checked-source release process; automatic GitHub deploy stays disconnected.
+# For a verified false positive:
+#   leaked-secret finding   -> add its fingerprint to .gitleaksignore
+#   code finding (Semgrep)  -> add a "nosemgrep" comment on that line
+#   package/config finding  -> add its ID (e.g. CVE-2026-1234) to .trivyignore
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    # Weekly re-check catches vulnerabilities published since the last push.
+    - cron: "23 13 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_IMAGE: zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+  SEMGREP_IMAGE: semgrep/semgrep:1.180.0@sha256:529ee8a277ec8adc5b534d7c74eea0a47e9de21d62852b6ba7ac6ba9566845c3
+  TRIVY_IMAGE: aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
+
+jobs:
+  secrets:
+    name: Secret detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Scan for leaked keys and passwords
+        run: |
+          set +e
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" -w /repo "$GITLEAKS_IMAGE" \
+            dir . --no-banner --redact --exit-code 2 \
+            --report-format json --report-path gitleaks.json
+          code=$?
+          set -e
+          {
+            echo "## Secret detection (Gitleaks)"
+            if [ "$code" -eq 0 ]; then
+              echo "No leaked keys, tokens or passwords found."
+            elif [ "$code" -eq 2 ]; then
+              echo "Found $(jq length gitleaks.json) possible leaked secret(s). Move them to environment variables and rotate the key."
+              echo
+              echo "| File | Line | Type | Fingerprint |"
+              echo "|---|---|---|---|"
+              jq -r '.[] | "| \(.File) | \(.StartLine) | \(.RuleID) | `\(.Fingerprint)` |"' gitleaks.json
+            else
+              echo "The scanner itself failed (exit $code). See the log above."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+
+      - name: Save report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secrets-report
+          path: gitleaks.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  code:
+    name: Code scan (SAST)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Scan source code for high-severity bugs
+        run: |
+          set +e
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" \
+            semgrep scan --config p/default --metrics off --quiet \
+            --json --output /src/semgrep.json
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ] || [ ! -s semgrep.json ]; then
+            echo "## Code scan (Semgrep)" >> "$GITHUB_STEP_SUMMARY"
+            echo "The scanner itself failed (exit $code). See the log above." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          count=$(jq '[.results[] | select(.extra.severity | IN("ERROR", "CRITICAL", "HIGH"))] | length' semgrep.json)
+          {
+            echo "## Code scan (Semgrep)"
+            if [ "$count" -eq 0 ]; then
+              echo "No high-severity problems found."
+            else
+              echo "Found $count high-severity problem(s)."
+              echo
+              echo "| File | Line | Rule | What it means |"
+              echo "|---|---|---|---|"
+              jq -r '.results[] | select(.extra.severity | IN("ERROR", "CRITICAL", "HIGH")) | "| \(.path) | \(.start.line) | \(.check_id | split(".") | last) | \(.extra.message | gsub("[\n|]"; " ") | .[0:160]) |"' semgrep.json
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$count" -eq 0 ]
+
+      - name: Save report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-report
+          path: semgrep.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  dependencies:
+    name: Dependency + config scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Scan packages and infrastructure files
+        run: |
+          set +e
+          docker run --rm -v "$PWD:/src" -w /src "$TRIVY_IMAGE" \
+            fs . --skip-version-check --scanners vuln,misconfig \
+            --severity HIGH,CRITICAL --ignore-unfixed \
+            --format json --output trivy-fs.json
+          code=$?
+          set -e
+          echo "## Dependencies + config (Trivy)" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -ne 0 ] || [ ! -s trivy-fs.json ]; then
+            echo "The scanner itself failed (exit $code). See the log above." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          vulns=$(jq '[.Results[]?.Vulnerabilities[]?] | length' trivy-fs.json)
+          configs=$(jq '[.Results[]?.Misconfigurations[]?] | length' trivy-fs.json)
+          {
+            if [ "$vulns" -eq 0 ]; then
+              echo "No high or critical package vulnerabilities with a fix available."
+            else
+              echo "### $vulns vulnerable package(s). Upgrade to the fixed version (Dependabot usually opens this PR for you)."
+              echo
+              echo "| Where | Package | Installed | Fixed in | Severity | ID |"
+              echo "|---|---|---|---|---|---|"
+              jq -r '.Results[]? | .Target as $t | .Vulnerabilities[]? | "| \($t) | \(.PkgName) | \(.InstalledVersion) | \(.FixedVersion) | \(.Severity) | \(.VulnerabilityID) |"' trivy-fs.json
+            fi
+            echo
+            if [ "$configs" -eq 0 ]; then
+              echo "No high or critical problems in Dockerfiles or infrastructure files."
+            else
+              echo "### $configs infrastructure config problem(s)."
+              echo
+              echo "| File | Problem | Severity | ID |"
+              echo "|---|---|---|---|"
+              jq -r '.Results[]? | .Target as $t | .Misconfigurations[]? | "| \($t) | \(.Title) | \(.Severity) | \(.ID) |"' trivy-fs.json
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$vulns" -eq 0 ] && [ "$configs" -eq 0 ]
+
+      - name: Save report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-report
+          path: trivy-fs.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  containers:
+    name: Container scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Build and scan each Dockerfile
+        run: |
+          echo "## Containers (Trivy)" >> "$GITHUB_STEP_SUMMARY"
+          mapfile -t dockerfiles < <(git ls-files '*Dockerfile*' | grep -E '(^|/)Dockerfile[^/]*$' | grep -v -e node_modules -e dockerignore)
+          if [ "${#dockerfiles[@]}" -eq 0 ]; then
+            echo "No Dockerfiles in this repo, nothing to scan." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          failed=0
+          for df in "${dockerfiles[@]}"; do
+            dir=$(dirname "$df")
+            tag="scan-$(echo "$df" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9' '-' | tr -s '-' | sed 's/-$//')"
+            if ! docker build -q -f "$df" -t "$tag" "$dir" > /dev/null; then
+              echo "- \`$df\`: failed to build (see the log above). Railway builds from this file too, so fix the build first." >> "$GITHUB_STEP_SUMMARY"
+              failed=1
+              continue
+            fi
+            set +e
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" "$TRIVY_IMAGE" \
+              image "$tag" --skip-version-check --scanners vuln \
+              --severity HIGH,CRITICAL --ignore-unfixed \
+              --format json --output "/out/trivy-$tag.json"
+            code=$?
+            set -e
+            if [ "$code" -ne 0 ]; then
+              echo "- \`$df\`: scanner failed (exit $code)." >> "$GITHUB_STEP_SUMMARY"
+              failed=1
+              continue
+            fi
+            count=$(jq '[.Results[]?.Vulnerabilities[]?] | length' "trivy-$tag.json")
+            if [ "$count" -eq 0 ]; then
+              echo "- \`$df\`: clean." >> "$GITHUB_STEP_SUMMARY"
+            else
+              failed=1
+              {
+                echo "- \`$df\`: $count fixable high/critical vulnerabilities. Usually fixed by bumping the base image in the FROM line."
+                echo
+                echo "  | Package | Installed | Fixed in | Severity | ID |"
+                echo "  |---|---|---|---|---|"
+                jq -r '.Results[]? | .Vulnerabilities[]? | "  | \(.PkgName) | \(.InstalledVersion) | \(.FixedVersion) | \(.Severity) | \(.VulnerabilityID) |"' "trivy-$tag.json"
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          exit "$failed"
+
+      - name: Save report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-report
+          path: trivy-scan-*.json
+          if-no-files-found: ignore
+          retention-days: 30

@@ -1,0 +1,10 @@
+{
+  "repository": "thevinesevolve-ux/sladash2",
+  "requiredChecks": [
+    "Application checks",
+    "Secret detection",
+    "Code scan (SAST)",
+    "Dependency + config scan",
+    "Container scan"
+  ]
+}

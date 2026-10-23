@@ -1,0 +1,33 @@
+name: Application source backup
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 10 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-backup:
+    name: Archive application source and Git history
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Archive committed source and history
+        run: |
+          mkdir -p "$RUNNER_TEMP/application-backup"
+          git archive --format=tar.gz --output="$RUNNER_TEMP/application-backup/source.tar.gz" HEAD
+          git bundle create "$RUNNER_TEMP/application-backup/repository.bundle" --all
+          git bundle verify "$RUNNER_TEMP/application-backup/repository.bundle"
+          git rev-parse HEAD > "$RUNNER_TEMP/application-backup/COMMIT"
+          cd "$RUNNER_TEMP/application-backup"
+          sha256sum source.tar.gz repository.bundle > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: application-source-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/application-backup/
+          retention-days: 90
+          if-no-files-found: error
