@@ -198,9 +198,10 @@ jobs:
           failed=0
           for df in "${dockerfiles[@]}"; do
             dir=$(dirname "$df")
-            tag="scan-$(echo "$dir" | tr '/.' '--' | tr -cd 'a-z0-9-')"
+            tag="scan-$(echo "$df" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9' '-' | tr -s '-' | sed 's/-$//')"
             if ! docker build -q -f "$df" -t "$tag" "$dir" > /dev/null; then
-              echo "- \`$df\`: could not build here (it may need build secrets), skipped. Railway's own build is unaffected." >> "$GITHUB_STEP_SUMMARY"
+              echo "- \`$df\`: failed to build (see the log above). Railway builds from this file too, so fix the build first." >> "$GITHUB_STEP_SUMMARY"
+              failed=1
               continue
             fi
             set +e
